@@ -1,5 +1,7 @@
 # states-clj (ステートマシン)
 
+[![CI](https://github.com/kotoba-lang/states/actions/workflows/ci.yml/badge.svg)](https://github.com/kotoba-lang/states/actions/workflows/ci.yml)
+
 Handle **AWS Step Functions ASL (Amazon States Language) as EDN/Clojure data** in
 portable Clojure — every namespace is `.cljc`, with **zero third-party runtime deps**,
 so it runs on the JVM, ClojureScript, and Clojure-on-WASM hosts (SCI). A state machine
