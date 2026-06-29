@@ -4,10 +4,11 @@
   `{:states/severity :error|:warn :states/code … :states/id … :states/msg …}`
   so a caller decides how to surface them. `valid?` is true iff there are no
   :error-level problems (warnings are advisory)."
-  (:require [states.model :as m]))
+  (:require [kotoba.dsl.problem :as problem]
+            [states.model :as m]))
 
-(defn- problem [severity code id msg]
-  {:states/severity severity :states/code code :states/id id :states/msg msg})
+(defn- states-problem [severity code id msg]
+  (problem/problem :states severity code id msg))
 
 ;; ---------------------------------------------------------------------------
 ;; reachability helpers
@@ -59,10 +60,10 @@
 
     ;; --- StartAt validations ---
     (if (nil? start)
-      (conj! ps (problem :error :states/missing-start-at nil
+      (conj! ps (states-problem :error :states/missing-start-at nil
                          "machine has no :states/start-at"))
       (when-not (contains? ids start)
-        (conj! ps (problem :error :states/start-at-not-found start
+        (conj! ps (states-problem :error :states/start-at-not-found start
                            (str "StartAt \"" start "\" is not a defined state")))))
 
     ;; --- per-state validations ---
@@ -71,22 +72,22 @@
         ;; Next/Default must point to existing states
         (when-let [nxt (:states/next smap)]
           (when-not (contains? ids nxt)
-            (conj! ps (problem :error :states/invalid-next sid
+            (conj! ps (states-problem :error :states/invalid-next sid
                                (str "state \"" sid "\" Next \"" nxt "\" is not defined")))))
         (when-let [dflt (:states/default smap)]
           (when-not (contains? ids dflt)
-            (conj! ps (problem :error :states/invalid-default sid
+            (conj! ps (states-problem :error :states/invalid-default sid
                                (str "state \"" sid "\" Default \"" dflt "\" is not defined")))))
         ;; Choice rule Nexts
         (doseq [rule (:states/choices smap [])]
           (doseq [nxt (choice-nexts rule)]
             (when-not (contains? ids nxt)
-              (conj! ps (problem :error :states/invalid-choice-next sid
+              (conj! ps (states-problem :error :states/invalid-choice-next sid
                                  (str "state \"" sid "\" choice Next \"" nxt "\" is not defined"))))))
         ;; warn: choice without Default
         (when (= t :choice)
           (when-not (:states/default smap)
-            (conj! ps (problem :warn :states/choice-no-default sid
+            (conj! ps (states-problem :warn :states/choice-no-default sid
                                (str "choice state \"" sid "\" has no Default")))))))
 
     ;; --- at least one terminal reachable from StartAt ---
@@ -95,7 +96,7 @@
             terminal? (fn [sid] (m/terminal? (get states sid {})))
             has-terminal (some terminal? reachable)]
         (when-not has-terminal
-          (conj! ps (problem :error :states/no-terminal start
+          (conj! ps (states-problem :error :states/no-terminal start
                              "no terminal state (Succeed/Fail/End:true) is reachable from StartAt")))))
 
     ;; --- warn: unreachable states ---
@@ -103,15 +104,15 @@
       (let [reachable (reachable-from states start)]
         (doseq [sid ids]
           (when-not (contains? reachable sid)
-            (conj! ps (problem :warn :states/unreachable sid
+            (conj! ps (states-problem :warn :states/unreachable sid
                                (str "state \"" sid "\" is unreachable from StartAt")))))))
 
     (persistent! ps)))
 
 (defn errors [machine]
-  (filterv #(= :error (:states/severity %)) (problems machine)))
+  (problem/errors :states (problems machine)))
 
 (defn valid?
   "True iff `machine` has no :error-level structural problems."
   [machine]
-  (empty? (errors machine)))
+  (problem/valid? :states (problems machine)))

@@ -1,6 +1,7 @@
 {:paths ["src"]
- ;; Zero third-party runtime deps — every namespace is portable .cljc (JVM, CLJS, SCI).
- :deps {}
+ ;; Portable .cljc runtime deps only.
+ :deps {io.github.kotoba-lang/dsl-core
+        {:git/sha "9bedd2b9d05133a2d9b0656a55135f142ab11a36"}}
  :aliases
  {:test {:extra-paths ["test"]
          :extra-deps {io.github.cognitect-labs/test-runner
