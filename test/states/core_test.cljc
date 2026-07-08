@@ -173,6 +173,50 @@
       (is (= 2 (count (:states/output result)))))))
 
 ;; ---------------------------------------------------------------------------
+;; 7b. Parallel: any failing branch fails the whole state (ASL semantics)
+;; ---------------------------------------------------------------------------
+
+(def parallel-machine-with-failing-branch
+  {:states/start-at "Fork"
+   :states/states
+   {"Fork" {:states/type    :parallel
+            :states/next    "Done"
+            :states/branches
+            [{:states/start-at "B1"
+              :states/states {"B1" {:states/type :pass :states/result {"branch" 1} :states/next "B1End"}
+                              "B1End" {:states/type :succeed}}}
+             {:states/start-at "B2"
+              :states/states {"B2" {:states/type :fail :states/error "Boom"}}}]}
+    "Done" {:states/type :succeed}}})
+
+(deftest test-parallel-branch-failure-propagates
+  (testing "a single failing branch must fail the whole Parallel state,
+            not be silently absorbed into the collected output while the
+            machine proceeds to :states/next as if nothing happened"
+    (let [result (e/run parallel-machine-with-failing-branch {})]
+      (is (= :failed (:states/status result)))
+      (is (= ["Fork"] (:states/path result)) "must not proceed to Done"))))
+
+;; ---------------------------------------------------------------------------
+;; 7c. Map: any failing iteration fails the whole state (ASL semantics)
+;; ---------------------------------------------------------------------------
+
+(def map-machine-with-failing-iteration
+  {:states/start-at "M"
+   :states/states
+   {"M" {:states/type :map
+         :states/next "Done"
+         :states/iterator {:states/start-at "I"
+                            :states/states {"I" {:states/type :fail :states/error "IterBoom"}}}}
+    "Done" {:states/type :succeed}}})
+
+(deftest test-map-iteration-failure-propagates
+  (testing "a single failing iteration must fail the whole Map state"
+    (let [result (e/run map-machine-with-failing-iteration [{"x" 1} {"x" 2}])]
+      (is (= :failed (:states/status result)))
+      (is (= ["M"] (:states/path result)) "must not proceed to Done"))))
+
+;; ---------------------------------------------------------------------------
 ;; 8. Fail state → :failed status
 ;; ---------------------------------------------------------------------------
 
