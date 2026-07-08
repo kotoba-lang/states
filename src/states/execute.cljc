@@ -134,16 +134,28 @@
       (let [branches (:states/branches smap [])
             results  (mapv #(interpret ports % data) branches)
             out      (mapv :states/output results)
+            ;; ASL semantics: a Parallel state fails if ANY branch fails,
+            ;; regardless of :states/end -- interpret's own :states/status
+            ;; per branch must not be dropped along with the rest of that
+            ;; branch's result when only :states/output is extracted above.
+            failed?  (some #(= :failed (:states/status %)) results)
             nxt      (when-not (:states/end smap) (:states/next smap))]
-        {:data out :next nxt :status (when (:states/end smap) :succeeded)})
+        {:data out
+         :next (when-not failed? nxt)
+         :status (cond failed? :failed (:states/end smap) :succeeded :else nil)})
 
       :map
       (let [items    (path-get data (or (:states/items-path smap) "$"))
             iterator (:states/iterator smap)
             results  (mapv #(interpret ports iterator %) (if (sequential? items) items []))
             out      (mapv :states/output results)
+            ;; Same ASL semantics as :parallel above: a Map state fails if
+            ;; ANY iteration fails.
+            failed?  (some #(= :failed (:states/status %)) results)
             nxt      (when-not (:states/end smap) (:states/next smap))]
-        {:data out :next nxt :status (when (:states/end smap) :succeeded)})
+        {:data out
+         :next (when-not failed? nxt)
+         :status (cond failed? :failed (:states/end smap) :succeeded :else nil)})
 
       ;; unknown type — treat as pass
       {:data data :next (:states/next smap) :status nil})))
