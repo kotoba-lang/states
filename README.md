@@ -120,6 +120,20 @@ State semantics:
 
 Returns `{:states/output <data> :states/path [state-names] :states/status :succeeded|:failed}`.
 
+## Kotoba bounded profile
+
+`src/states/bounded_model.kotoba` is a capability-free port of
+`states.model`'s state-machine accessors, scoped to task states with a
+single `:next` transition plus `:succeed`/`:fail` terminal states (the
+shape `states.core-test`'s own `linear-machine` fixture uses).
+`:choice`/`:parallel`/`:map` states and the full ASL interpreter
+(`states.execute`) stay CLJC. Uses `kotoba-lang/compiler`'s canonical
+bounded typed-map (`[:map :string ...]`, up to 31 entries, the same
+primitive already production-qualified by `kotoba-lang/crdt`'s
+CRDTs) to represent the state table. See
+[migration/bounded-model-v1.edn](migration/bounded-model-v1.edn) for the
+full record.
+
 ## Test
 
 ```
