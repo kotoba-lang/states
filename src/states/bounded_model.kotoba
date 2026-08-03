@@ -51,7 +51,7 @@
   (typed-map-contains states-map-type (record-get machine-type machine :states) name))
 
 (defn get-state [machine [:alias machine-type] name :string] [:alias state-value-type]
-  (option-value-of [:option state-value-type]
+  (option-or
     (typed-map-get states-map-type (record-get machine-type machine :states) name)
     (record state-value-type :fail "" true)))
 
